@@ -7,6 +7,7 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+
 permissions:
   contents: write
 
@@ -47,11 +48,8 @@ jobs:
           libhello_windows_amd64.lib
           libhello.h
 
-  build-macos:
+  build-macos-arm64:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [ amd64, arm64 ]
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -61,32 +59,67 @@ jobs:
       with:
         go-version: '1.21'
 
-    - name: Build macOS dynamic library for ${{ matrix.arch }}
+    - name: Build macOS dynamic library for arm64
       run: |
-        GOARCH=${{ matrix.arch }} go build -o libhello_macos_${{ matrix.arch }}.dylib -buildmode=c-shared main.go
+        go build -o libhello_macos_arm64.dylib -buildmode=c-shared main.go
 
-    - name: Build macOS static library for ${{ matrix.arch }}
+    - name: Build macOS static library for arm64
       run: |
-        GOARCH=${{ matrix.arch }} go build -o libhello_macos_${{ matrix.arch }}.a -buildmode=c-archive main.go
+        go build -o libhello_macos_arm64.a -buildmode=c-archive main.go
 
     - name: Rename header file
       run: |
-        mv libhello_macos_${{ matrix.arch }}.h libhello.h
+        mv libhello_macos_arm64.h libhello.h
 
     - name: List output files
       run: ls -la
 
-    - name: Upload macOS ${{ matrix.arch }} artifacts
+    - name: Upload macOS arm64 artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: macos-library-${{ matrix.arch }}
+        name: macos-library-arm64
         path: |
-          libhello_macos_${{ matrix.arch }}.dylib
-          libhello_macos_${{ matrix.arch }}.a
+          libhello_macos_arm64.dylib
+          libhello_macos_arm64.a
+          libhello.h
+
+  build-macos-amd64:
+    runs-on: macos-13
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Build macOS dynamic library for amd64
+      run: |
+        go build -o libhello_macos_amd64.dylib -buildmode=c-shared main.go
+
+    - name: Build macOS static library for amd64
+      run: |
+        go build -o libhello_macos_amd64.a -buildmode=c-archive main.go
+
+    - name: Rename header file
+      run: |
+        mv libhello_macos_amd64.h libhello.h
+
+    - name: List output files
+      run: ls -la
+
+    - name: Upload macOS amd64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-library-amd64
+        path: |
+          libhello_macos_amd64.dylib
+          libhello_macos_amd64.a
           libhello.h
 
   create-release:
-    needs: [ build-windows, build-macos ]
+    needs: [ build-windows, build-macos-arm64, build-macos-amd64 ]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
