@@ -44,13 +44,14 @@ jobs:
         :execute
         cl.exe !args!
         "@
-        $wrapper | Out-File -FilePath "cl_wrapper.bat" -Encoding ASCII
+        $wrapper | Out-File -FilePath "$PWD\cl_wrapper.bat" -Encoding ASCII
+        Write-Host "Wrapper script created at: $PWD\cl_wrapper.bat"
       shell: powershell
 
     - name: Build Windows static library with MSVC
       env:
         CGO_ENABLED: "1"
-        CC: "cl_wrapper.bat"
+        CC: "${{ github.workspace }}\\cl_wrapper.bat"
       run: |
         go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
       shell: cmd
