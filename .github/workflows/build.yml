@@ -35,6 +35,13 @@ jobs:
         go build -o hello_windows_amd64.dll -buildmode=c-shared main.go
       shell: powershell
 
+    - name: Generate .lib import library from DLL
+      run: |
+        $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:Path
+        gendef hello_windows_amd64.dll
+        dlltool -D hello_windows_amd64.dll -d hello_windows_amd64.def -l hello_windows_amd64.lib
+      shell: powershell
+
     - name: List generated files
       run: dir
       shell: cmd
@@ -50,6 +57,7 @@ jobs:
         name: windows-library-amd64
         path: |
           hello_windows_amd64.dll
+          hello_windows_amd64.lib
           hello.h
 
   build-macos-arm64:
@@ -155,6 +163,7 @@ jobs:
         name: Build ${{ github.run_number }}
         files: |
           artifacts/windows-amd64/hello_windows_amd64.dll
+          artifacts/windows-amd64/hello_windows_amd64.lib
           artifacts/windows-amd64/hello.h
           artifacts/macos-arm64/libhello_macos_arm64.a
           artifacts/macos-amd64/libhello_macos_amd64.a
