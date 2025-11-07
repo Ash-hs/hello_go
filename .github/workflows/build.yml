@@ -30,6 +30,9 @@ jobs:
         CGO_ENABLED: "1"
         CC: "cl"
         CXX: "cl"
+        CGO_CFLAGS: ""
+        CGO_CXXFLAGS: ""
+        CGO_LDFLAGS: ""
       run: |
         go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
       shell: cmd
@@ -40,7 +43,7 @@ jobs:
 
     - name: Rename header file
       run: |
-        if exist hello_windows_amd64.h ren hello_windows_amd64.h libhello.h
+        if exist hello_windows_amd64.h ren hello_windows_amd64.h hello.h
       shell: cmd
 
     - name: Upload Windows artifacts
@@ -49,7 +52,7 @@ jobs:
         name: windows-library-amd64
         path: |
           hello_windows_amd64.lib
-          libhello.h
+          hello.h
 
   build-macos-arm64:
     runs-on: macos-latest
@@ -154,7 +157,7 @@ jobs:
         name: Build ${{ github.run_number }}
         files: |
           artifacts/windows-amd64/hello_windows_amd64.lib
-          artifacts/windows-amd64/libhello.h
+          artifacts/windows-amd64/hello.h
           artifacts/macos-arm64/libhello_macos_arm64.a
           artifacts/macos-amd64/libhello_macos_amd64.a
       env:
