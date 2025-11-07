@@ -7,6 +7,7 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+
 permissions:
   contents: write
 
@@ -25,14 +26,31 @@ jobs:
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
 
+    - name: Create cl wrapper script to filter incompatible flags
+      run: |
+        $wrapper = @"
+        @echo off
+        setlocal enabledelayedexpansion
+        set args=
+        :parse
+        if "%~1"=="" goto execute
+        set arg=%~1
+        echo !arg! | findstr /C:"/Werror" /C:"-Werror" >nul
+        if errorlevel 1 (
+          set args=!args! %~1
+        )
+        shift
+        goto parse
+        :execute
+        cl.exe !args!
+        "@
+        $wrapper | Out-File -FilePath "cl_wrapper.bat" -Encoding ASCII
+      shell: powershell
+
     - name: Build Windows static library with MSVC
       env:
         CGO_ENABLED: "1"
-        CC: "cl"
-        CXX: "cl"
-        CGO_CFLAGS: ""
-        CGO_CXXFLAGS: ""
-        CGO_LDFLAGS: ""
+        CC: "cl_wrapper.bat"
       run: |
         go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
       shell: cmd
