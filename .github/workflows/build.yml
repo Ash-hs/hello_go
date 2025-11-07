@@ -22,9 +22,14 @@ jobs:
       with:
         go-version: '1.21'
 
-    - name: Build Windows static library
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Build Windows static library with MSVC
       env:
         CGO_ENABLED: "1"
+        CC: "cl"
+        CXX: "cl"
       run: |
         go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
       shell: cmd
