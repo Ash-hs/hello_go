@@ -1,0 +1,104 @@
+name: Build Cross-Platform Libraries
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build Windows DLL
+        run: |
+          go build -o winlib.dll -buildmode=c-shared main.go
+        shell: cmd
+
+      - name: Rename lib file
+        run: |
+          if exist winlib.lib del winlib.lib
+          ren libwinlib.a winlib.lib
+        shell: cmd
+        continue-on-error: true
+
+      - name: List output files
+        run: dir
+        shell: cmd
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-library
+          path: |
+            winlib.dll
+            winlib.h
+            winlib.lib
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build macOS static library
+        run: |
+          go build -o libhello.dylib -buildmode=c-shared main.go
+
+      - name: Build macOS static archive
+        run: |
+          go build -o libhello.a -buildmode=c-archive main.go
+
+      - name: List output files
+        run: ls -la
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-library
+          path: |
+            libhello.dylib
+            libhello.a
+            libhello.h
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-library
+          path: ./windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-library
+          path: ./macos
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          files: |
+            windows/*
+            macos/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
