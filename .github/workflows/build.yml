@@ -60,6 +60,50 @@ jobs:
           hello_windows_amd64.lib
           hello.h
 
+  build-windows-clang:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Install LLVM (clang-cl)
+      run: choco install llvm -y
+      shell: powershell
+
+    - name: Build Windows DLL with clang-cl (auto-generate .lib)
+      env:
+        CGO_ENABLED: "1"
+        CC: "clang-cl"
+        CXX: "clang-cl"
+        CGO_LDFLAGS: "-Wl,--out-implib,hello_windows_clang_amd64.lib"
+      run: |
+        $env:Path = "C:\Program Files\LLVM\bin;" + $env:Path
+        go build -o hello_windows_clang_amd64.dll -buildmode=c-shared main.go
+      shell: powershell
+
+    - name: List generated files
+      run: dir
+      shell: cmd
+
+    - name: Rename header file
+      run: |
+        if exist hello_windows_clang_amd64.h ren hello_windows_clang_amd64.h hello_clang.h
+      shell: cmd
+
+    - name: Upload Windows clang-cl artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-library-clang-amd64
+        path: |
+          hello_windows_clang_amd64.dll
+          hello_windows_clang_amd64.lib
+          hello_clang.h
+
   build-macos-arm64:
     runs-on: macos-latest
     steps:
@@ -125,7 +169,7 @@ jobs:
           libhello.h
 
   create-release:
-    needs: [ build-windows, build-macos-arm64, build-macos-amd64 ]
+    needs: [ build-windows, build-windows-clang, build-macos-arm64, build-macos-amd64 ]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
@@ -134,6 +178,12 @@ jobs:
       with:
         name: windows-library-amd64
         path: ./artifacts/windows-amd64
+
+    - name: Download Windows clang-cl amd64 artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-library-clang-amd64
+        path: ./artifacts/windows-clang-amd64
 
     - name: Download macOS arm64 artifacts
       uses: actions/download-artifact@v4
@@ -151,6 +201,8 @@ jobs:
       run: |
         echo "Windows amd64:"
         ls -la artifacts/windows-amd64/
+        echo "Windows clang-cl amd64:"
+        ls -la artifacts/windows-clang-amd64/
         echo "macOS arm64:"
         ls -la artifacts/macos-arm64/
         echo "macOS amd64:"
@@ -165,6 +217,9 @@ jobs:
           artifacts/windows-amd64/hello_windows_amd64.dll
           artifacts/windows-amd64/hello_windows_amd64.lib
           artifacts/windows-amd64/hello.h
+          artifacts/windows-clang-amd64/hello_windows_clang_amd64.dll
+          artifacts/windows-clang-amd64/hello_windows_clang_amd64.lib
+          artifacts/windows-clang-amd64/hello_clang.h
           artifacts/macos-arm64/libhello_macos_arm64.a
           artifacts/macos-amd64/libhello_macos_amd64.a
       env:
