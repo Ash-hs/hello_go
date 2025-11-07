@@ -28,14 +28,17 @@ jobs:
         go build -o libhello_windows_amd64.dll -buildmode=c-shared main.go
       shell: cmd
 
+    - name: List generated files
+      run: dir
+      shell: cmd
+
     - name: Rename files
       run: |
-        ren liblibhello_windows_amd64.a libhello_windows_amd64.lib
-        ren libhello_windows_amd64.h libhello.h
+        if exist libhello_windows_amd64.a ren libhello_windows_amd64.a libhello_windows_amd64.lib
+        if exist libhello_windows_amd64.h ren libhello_windows_amd64.h libhello.h
       shell: cmd
-      continue-on-error: true
 
-    - name: List output files
+    - name: List output files after rename
       run: dir
       shell: cmd
 
