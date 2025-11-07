@@ -23,6 +23,9 @@ jobs:
       with:
         go-version: '1.21'
 
+    - name: Set up MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+
     - name: Build Windows DLL
       run: |
         go build -o libhello_windows_amd64.dll -buildmode=c-shared main.go
@@ -32,13 +35,20 @@ jobs:
       run: dir
       shell: cmd
 
-    - name: Rename files
+    - name: Generate .lib from .dll using lib.exe
       run: |
-        if exist libhello_windows_amd64.a ren libhello_windows_amd64.a libhello_windows_amd64.lib
+        echo EXPORTS > libhello_windows_amd64.def
+        echo Add >> libhello_windows_amd64.def
+        echo Hello >> libhello_windows_amd64.def
+        lib /DEF:libhello_windows_amd64.def /OUT:libhello_windows_amd64.lib /MACHINE:X64
+      shell: cmd
+
+    - name: Rename header file
+      run: |
         if exist libhello_windows_amd64.h ren libhello_windows_amd64.h libhello.h
       shell: cmd
 
-    - name: List output files after rename
+    - name: List output files after processing
       run: dir
       shell: cmd
 
