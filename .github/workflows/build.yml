@@ -23,41 +23,17 @@ jobs:
       with:
         go-version: '1.21'
 
-    - name: Setup MSVC
-      uses: ilammy/msvc-dev-cmd@v1
-
-    - name: Create cl wrapper script to filter incompatible flags
-      run: |
-        $wrapper = @"
-        @echo off
-        setlocal enabledelayedexpansion
-        set args=
-        :parse
-        if "%~1"=="" goto execute
-        set arg=%~1
-        REM Check if arg starts with GCC-specific flags
-        set skip=0
-        echo !arg! | findstr /B /C:"-W" /C:"-l" /C:"-L" /C:"-g" /C:"-O" /C:"-pthread" /C:"-fPIC" /C:"-march" /C:"-m64" /C:"-m32" >nul
-        if not errorlevel 1 set skip=1
-        if !skip! equ 0 (
-          set args=!args! %~1
-        )
-        shift
-        goto parse
-        :execute
-        cl.exe !args!
-        "@
-        $wrapper | Out-File -FilePath "$PWD\cl_wrapper.bat" -Encoding ASCII
-        Write-Host "Wrapper script created at: $PWD\cl_wrapper.bat"
+    - name: Install MinGW-w64
+      run: choco install mingw -y
       shell: powershell
 
-    - name: Build Windows static library with MSVC
+    - name: Build Windows DLL with MinGW
       env:
         CGO_ENABLED: "1"
-        CC: "${{ github.workspace }}\\cl_wrapper.bat"
       run: |
-        go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
-      shell: cmd
+        $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:Path
+        go build -o hello_windows_amd64.dll -buildmode=c-shared main.go
+      shell: powershell
 
     - name: List generated files
       run: dir
@@ -73,7 +49,7 @@ jobs:
       with:
         name: windows-library-amd64
         path: |
-          hello_windows_amd64.lib
+          hello_windows_amd64.dll
           hello.h
 
   build-macos-arm64:
@@ -178,7 +154,7 @@ jobs:
         tag_name: build-${{ github.run_number }}
         name: Build ${{ github.run_number }}
         files: |
-          artifacts/windows-amd64/hello_windows_amd64.lib
+          artifacts/windows-amd64/hello_windows_amd64.dll
           artifacts/windows-amd64/hello.h
           artifacts/macos-arm64/libhello_macos_arm64.a
           artifacts/macos-amd64/libhello_macos_amd64.a
