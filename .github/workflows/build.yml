@@ -7,98 +7,115 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
 
-      - name: Build Windows DLL
-        run: |
-          go build -o winlib.dll -buildmode=c-shared main.go
-        shell: cmd
+    - name: Build Windows DLL
+      run: |
+        go build -o libhello_windows_amd64.dll -buildmode=c-shared main.go
+      shell: cmd
 
-      - name: Rename lib file
-        run: |
-          if exist winlib.lib del winlib.lib
-          ren libwinlib.a winlib.lib
-        shell: cmd
-        continue-on-error: true
+    - name: Rename files
+      run: |
+        ren liblibhello_windows_amd64.a libhello_windows_amd64.lib
+        ren libhello_windows_amd64.h libhello.h
+      shell: cmd
+      continue-on-error: true
 
-      - name: List output files
-        run: dir
-        shell: cmd
+    - name: List output files
+      run: dir
+      shell: cmd
 
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-library
-          path: |
-            winlib.dll
-            winlib.h
-            winlib.lib
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-library-amd64
+        path: |
+          libhello_windows_amd64.dll
+          libhello_windows_amd64.lib
+          libhello.h
 
   build-macos:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [ amd64, arm64 ]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
 
-      - name: Build macOS static library
-        run: |
-          go build -o libhello.dylib -buildmode=c-shared main.go
+    - name: Build macOS dynamic library for ${{ matrix.arch }}
+      run: |
+        GOARCH=${{ matrix.arch }} go build -o libhello_macos_${{ matrix.arch }}.dylib -buildmode=c-shared main.go
 
-      - name: Build macOS static archive
-        run: |
-          go build -o libhello.a -buildmode=c-archive main.go
+    - name: Build macOS static library for ${{ matrix.arch }}
+      run: |
+        GOARCH=${{ matrix.arch }} go build -o libhello_macos_${{ matrix.arch }}.a -buildmode=c-archive main.go
 
-      - name: List output files
-        run: ls -la
+    - name: Rename header file
+      run: |
+        mv libhello_macos_${{ matrix.arch }}.h libhello.h
 
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-library
-          path: |
-            libhello.dylib
-            libhello.a
-            libhello.h
+    - name: List output files
+      run: ls -la
+
+    - name: Upload macOS ${{ matrix.arch }} artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-library-${{ matrix.arch }}
+        path: |
+          libhello_macos_${{ matrix.arch }}.dylib
+          libhello_macos_${{ matrix.arch }}.a
+          libhello.h
 
   create-release:
-    needs: [build-windows, build-macos]
+    needs: [ build-windows, build-macos ]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
-      - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-library
-          path: ./windows
+    - name: Download Windows amd64 artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-library-amd64
+        path: ./windows-amd64
 
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-library
-          path: ./macos
+    - name: Download macOS arm64 artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-library-arm64
+        path: ./macos-arm64
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: build-${{ github.run_number }}
-          name: Build ${{ github.run_number }}
-          files: |
-            windows/*
-            macos/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Download macOS amd64 artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-library-amd64
+        path: ./macos-amd64
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: build-${{ github.run_number }}
+        name: Build ${{ github.run_number }}
+        files: |
+          windows-amd64/*
+          macos-arm64/*
+          macos-amd64/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
