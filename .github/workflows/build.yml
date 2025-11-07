@@ -7,7 +7,6 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-
 permissions:
   contents: write
 
@@ -23,43 +22,18 @@ jobs:
       with:
         go-version: '1.21'
 
-    - name: Set up MSVC
-      uses: ilammy/msvc-dev-cmd@v1
-
-    - name: Install MinGW for .a file generation
-      run: choco install mingw -y
-      shell: powershell
-
-    - name: Build Windows DLL
+    - name: Build Windows static library
       run: |
-        go build -o libhello_windows_amd64.dll -buildmode=c-shared main.go
+        go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
       shell: cmd
 
     - name: List generated files
       run: dir
       shell: cmd
 
-    - name: Generate .lib from .dll using lib.exe (for MSVC)
-      run: |
-        echo EXPORTS > libhello_windows_amd64.def
-        echo Add >> libhello_windows_amd64.def
-        echo Hello >> libhello_windows_amd64.def
-        lib /DEF:libhello_windows_amd64.def /OUT:libhello_windows_amd64.lib /MACHINE:X64
-      shell: cmd
-
-    - name: Generate .a from .dll using dlltool (for MinGW/GCC)
-      run: |
-        $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:Path
-        dlltool -D libhello_windows_amd64.dll -d libhello_windows_amd64.def -l libhello_windows_amd64.a
-      shell: powershell
-
     - name: Rename header file
       run: |
-        if exist libhello_windows_amd64.h ren libhello_windows_amd64.h libhello.h
-      shell: cmd
-
-    - name: List output files after processing
-      run: dir
+        if exist hello_windows_amd64.h ren hello_windows_amd64.h libhello.h
       shell: cmd
 
     - name: Upload Windows artifacts
@@ -67,9 +41,7 @@ jobs:
       with:
         name: windows-library-amd64
         path: |
-          libhello_windows_amd64.dll
-          libhello_windows_amd64.lib
-          libhello_windows_amd64.a
+          hello_windows_amd64.lib
           libhello.h
 
   build-macos-arm64:
@@ -82,10 +54,6 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
-
-    - name: Build macOS dynamic library for arm64
-      run: |
-        go build -o libhello_macos_arm64.dylib -buildmode=c-shared main.go
 
     - name: Build macOS static library for arm64
       run: |
@@ -103,7 +71,6 @@ jobs:
       with:
         name: macos-library-arm64
         path: |
-          libhello_macos_arm64.dylib
           libhello_macos_arm64.a
           libhello.h
 
@@ -117,10 +84,6 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
-
-    - name: Build macOS dynamic library for amd64
-      run: |
-        go build -o libhello_macos_amd64.dylib -buildmode=c-shared main.go
 
     - name: Build macOS static library for amd64
       run: |
@@ -138,7 +101,6 @@ jobs:
       with:
         name: macos-library-amd64
         path: |
-          libhello_macos_amd64.dylib
           libhello_macos_amd64.a
           libhello.h
 
@@ -180,13 +142,9 @@ jobs:
         tag_name: build-${{ github.run_number }}
         name: Build ${{ github.run_number }}
         files: |
-          artifacts/windows-amd64/libhello_windows_amd64.dll
-          artifacts/windows-amd64/libhello_windows_amd64.lib
-          artifacts/windows-amd64/libhello_windows_amd64.a
+          artifacts/windows-amd64/hello_windows_amd64.lib
           artifacts/windows-amd64/libhello.h
-          artifacts/macos-arm64/libhello_macos_arm64.dylib
           artifacts/macos-arm64/libhello_macos_arm64.a
-          artifacts/macos-amd64/libhello_macos_amd64.dylib
           artifacts/macos-amd64/libhello_macos_amd64.a
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
