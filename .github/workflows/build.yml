@@ -26,6 +26,10 @@ jobs:
     - name: Set up MSVC
       uses: ilammy/msvc-dev-cmd@v1
 
+    - name: Install MinGW for .a file generation
+      run: choco install mingw -y
+      shell: powershell
+
     - name: Build Windows DLL
       run: |
         go build -o libhello_windows_amd64.dll -buildmode=c-shared main.go
@@ -35,13 +39,19 @@ jobs:
       run: dir
       shell: cmd
 
-    - name: Generate .lib from .dll using lib.exe
+    - name: Generate .lib from .dll using lib.exe (for MSVC)
       run: |
         echo EXPORTS > libhello_windows_amd64.def
         echo Add >> libhello_windows_amd64.def
         echo Hello >> libhello_windows_amd64.def
         lib /DEF:libhello_windows_amd64.def /OUT:libhello_windows_amd64.lib /MACHINE:X64
       shell: cmd
+
+    - name: Generate .a from .dll using dlltool (for MinGW/GCC)
+      run: |
+        $env:Path = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:Path
+        dlltool -D libhello_windows_amd64.dll -d libhello_windows_amd64.def -l libhello_windows_amd64.a
+      shell: powershell
 
     - name: Rename header file
       run: |
@@ -59,6 +69,7 @@ jobs:
         path: |
           libhello_windows_amd64.dll
           libhello_windows_amd64.lib
+          libhello_windows_amd64.a
           libhello.h
 
   build-macos-arm64:
@@ -171,6 +182,7 @@ jobs:
         files: |
           artifacts/windows-amd64/libhello_windows_amd64.dll
           artifacts/windows-amd64/libhello_windows_amd64.lib
+          artifacts/windows-amd64/libhello_windows_amd64.a
           artifacts/windows-amd64/libhello.h
           artifacts/macos-arm64/libhello_macos_arm64.dylib
           artifacts/macos-arm64/libhello_macos_arm64.a
