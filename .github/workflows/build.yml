@@ -75,6 +75,11 @@ jobs:
       run: choco install llvm -y
       shell: powershell
 
+    - name: Setup MSVC Build Tools
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
     - name: Build Windows DLL with clang-cl
       env:
         CGO_ENABLED: "1"
