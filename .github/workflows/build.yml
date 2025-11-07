@@ -35,8 +35,11 @@ jobs:
         :parse
         if "%~1"=="" goto execute
         set arg=%~1
-        echo !arg! | findstr /C:"/Werror" /C:"-Werror" >nul
-        if errorlevel 1 (
+        REM Check if arg starts with GCC-specific flags
+        set skip=0
+        echo !arg! | findstr /B /C:"-W" /C:"-l" /C:"-L" /C:"-g" /C:"-O" /C:"-pthread" /C:"-fPIC" /C:"-march" /C:"-m64" /C:"-m32" >nul
+        if not errorlevel 1 set skip=1
+        if !skip! equ 0 (
           set args=!args! %~1
         )
         shift
