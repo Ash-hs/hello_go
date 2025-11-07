@@ -23,6 +23,8 @@ jobs:
         go-version: '1.21'
 
     - name: Build Windows static library
+      env:
+        CGO_ENABLED: "1"
       run: |
         go build -o hello_windows_amd64.lib -buildmode=c-archive main.go
       shell: cmd
@@ -56,6 +58,8 @@ jobs:
         go-version: '1.21'
 
     - name: Build macOS static library for arm64
+      env:
+        CGO_ENABLED: "1"
       run: |
         go build -o libhello_macos_arm64.a -buildmode=c-archive main.go
 
@@ -86,6 +90,8 @@ jobs:
         go-version: '1.21'
 
     - name: Build macOS static library for amd64
+      env:
+        CGO_ENABLED: "1"
       run: |
         go build -o libhello_macos_amd64.a -buildmode=c-archive main.go
 
