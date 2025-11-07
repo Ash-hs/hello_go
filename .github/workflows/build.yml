@@ -75,15 +75,20 @@ jobs:
       run: choco install llvm -y
       shell: powershell
 
-    - name: Build Windows DLL with clang-cl (auto-generate .lib)
+    - name: Build Windows DLL with clang-cl
       env:
         CGO_ENABLED: "1"
         CC: "clang-cl"
         CXX: "clang-cl"
-        CGO_LDFLAGS: "-Wl,--out-implib,hello_windows_clang_amd64.lib"
       run: |
         $env:Path = "C:\Program Files\LLVM\bin;" + $env:Path
         go build -o hello_windows_clang_amd64.dll -buildmode=c-shared main.go
+      shell: powershell
+
+    - name: Generate .lib import library using llvm-dlltool
+      run: |
+        $env:Path = "C:\Program Files\LLVM\bin;" + $env:Path
+        llvm-dlltool -m i386:x86-64 -D hello_windows_clang_amd64.dll -l hello_windows_clang_amd64.lib
       shell: powershell
 
     - name: List generated files
